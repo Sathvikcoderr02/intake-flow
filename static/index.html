@@ -5,29 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Intake Workflow</title>
     <style>
+      /* Warm stone + copper: distinct from typical blue “AI dashboard” UIs */
       :root {
         color-scheme: light dark;
-        --bg: #0f1419;
-        --panel: #1a2332;
-        --border: #2d3a4d;
-        --text: #e8eef7;
-        --muted: #9fb0c3;
-        --accent: #5b9cff;
-        --ok: #3ecf8e;
-        --warn: #f5a524;
-        --err: #ff6b6b;
+        --bg: #141210;
+        --bg-elevated: #1a1815;
+        --panel: #1f1c18;
+        --border: #3d3730;
+        --text: #f5f0e8;
+        --muted: #9e9488;
+        --accent: #c17f59;
+        --accent-dim: #8a5a40;
+        --accent-ink: #1a1410;
+        --ok: #7fb89a;
+        --warn: #d4a85c;
+        --err: #d67a72;
+        --ring: rgba(193, 127, 89, 0.45);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
       }
       @media (prefers-color-scheme: light) {
         :root {
-          --bg: #f6f8fb;
-          --panel: #ffffff;
-          --border: #d7dee8;
-          --text: #1b2430;
-          --muted: #5c6b7d;
-          --accent: #2563eb;
-          --ok: #0f9d58;
-          --warn: #c77700;
-          --err: #c62828;
+          --bg: #f3efe8;
+          --bg-elevated: #ebe6dd;
+          --panel: #fffdf9;
+          --border: #e0d8ce;
+          --text: #1c1a17;
+          --muted: #6b645a;
+          --accent: #a65d34;
+          --accent-dim: #7a4528;
+          --accent-ink: #fffaf5;
+          --ok: #2f6f47;
+          --warn: #8f6a24;
+          --err: #9c3d36;
+          --ring: rgba(166, 93, 52, 0.4);
+          --shadow: 0 4px 24px rgba(28, 26, 23, 0.07);
         }
       }
       * {
@@ -35,25 +46,40 @@
       }
       body {
         margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+        font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto,
           Helvetica, Arial, sans-serif;
-        background: var(--bg);
+        background: radial-gradient(
+            120% 80% at 100% 0%,
+            rgba(193, 127, 89, 0.08),
+            transparent 55%
+          ),
+          var(--bg);
         color: var(--text);
         line-height: 1.5;
       }
       header {
         padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--border);
-        background: var(--panel);
+        border-top: 3px solid var(--accent);
+        background: linear-gradient(
+          165deg,
+          var(--panel) 0%,
+          var(--bg-elevated) 100%
+        );
+        box-shadow: var(--shadow);
       }
       header h1 {
         margin: 0 0 0.35rem;
-        font-size: 1.25rem;
+        font-size: 1.28rem;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
       }
       header p {
         margin: 0;
         color: var(--muted);
         font-size: 0.95rem;
+        max-width: 52ch;
       }
       main {
         max-width: 960px;
@@ -70,12 +96,18 @@
         width: 100%;
         min-height: 220px;
         padding: 0.75rem;
-        border-radius: 8px;
+        border-radius: 10px;
         border: 1px solid var(--border);
-        background: var(--panel);
+        background: var(--bg-elevated);
         color: var(--text);
         font-size: 0.95rem;
         resize: vertical;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      textarea:focus-visible {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--ring);
       }
       .row {
         display: flex;
@@ -85,17 +117,38 @@
       }
       button {
         appearance: none;
-        border: 1px solid var(--border);
-        background: var(--accent);
-        color: #fff;
-        padding: 0.55rem 1rem;
-        border-radius: 8px;
+        border: 1px solid var(--accent-dim);
+        background: linear-gradient(
+          180deg,
+          var(--accent) 0%,
+          var(--accent-dim) 100%
+        );
+        color: var(--accent-ink);
+        padding: 0.55rem 1.1rem;
+        border-radius: 9px;
         font-weight: 600;
         cursor: pointer;
+        letter-spacing: 0.01em;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+        transition: filter 0.15s ease, box-shadow 0.15s ease;
+      }
+      button:hover:not(:disabled) {
+        filter: brightness(1.06);
+      }
+      button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--ring), 0 1px 0 rgba(255, 255, 255, 0.12) inset;
       }
       button.secondary {
         background: transparent;
         color: var(--text);
+        border-color: var(--border);
+        box-shadow: none;
+      }
+      button.secondary:hover:not(:disabled) {
+        filter: none;
+        background: rgba(193, 127, 89, 0.1);
+        border-color: var(--accent-dim);
       }
       button:disabled {
         opacity: 0.55;
@@ -103,13 +156,18 @@
       }
       .card {
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 1rem 1.1rem;
+        border-radius: 12px;
+        padding: 1rem 1.15rem;
         background: var(--panel);
+        box-shadow: var(--shadow);
       }
       .card h2 {
         margin: 0 0 0.75rem;
         font-size: 1rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        color: var(--text);
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
       }
       .kv {
         display: grid;
@@ -123,20 +181,27 @@
       pre {
         margin: 0;
         padding: 0.75rem;
-        border-radius: 8px;
+        border-radius: 10px;
         border: 1px solid var(--border);
-        background: var(--bg);
+        background: var(--bg-elevated);
         overflow: auto;
         font-size: 0.82rem;
         max-height: 320px;
       }
       .badge {
         display: inline-block;
-        padding: 0.15rem 0.5rem;
+        padding: 0.15rem 0.55rem;
         border-radius: 999px;
         font-size: 0.78rem;
-        border: 1px solid var(--border);
-        color: var(--muted);
+        border: 1px solid var(--accent-dim);
+        color: var(--accent);
+        background: rgba(193, 127, 89, 0.12);
+        font-weight: 600;
+      }
+      @media (prefers-color-scheme: light) {
+        .badge {
+          background: rgba(166, 93, 52, 0.1);
+        }
       }
       .error {
         color: var(--err);
