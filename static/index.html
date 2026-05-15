@@ -44,6 +44,10 @@
       * {
         box-sizing: border-box;
       }
+      html {
+        margin: 0;
+        width: 100%;
+      }
       body {
         margin: 0;
         font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto,
@@ -56,9 +60,10 @@
           var(--bg);
         color: var(--text);
         line-height: 1.5;
+        overflow-x: hidden;
       }
       header {
-        padding: 0;
+        padding: 1.25rem 0;
         border-bottom: 1px solid var(--border);
         border-top: 3px solid var(--accent);
         background: linear-gradient(
@@ -68,18 +73,15 @@
         );
         box-shadow: var(--shadow);
       }
-      .layout {
-        width: 100%;
-        max-width: 44rem;
+      /* One centered column: avoids drift from nested width wrappers */
+      .page-shell {
+        box-sizing: border-box;
+        width: min(100%, 44rem);
         margin-left: auto;
         margin-right: auto;
-        padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
-        padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
-        box-sizing: border-box;
-      }
-      header .layout {
-        padding-top: 1.25rem;
-        padding-bottom: 1.25rem;
+        padding-left: clamp(1rem, 4vw, 1.5rem);
+        padding-right: clamp(1rem, 4vw, 1.5rem);
+        min-width: 0;
       }
       header h1 {
         margin: 0 0 0.35rem;
@@ -101,6 +103,8 @@
         gap: 1rem;
         padding-top: 1.5rem;
         padding-bottom: 2.5rem;
+        min-width: 0;
+        width: 100%;
       }
       label {
         font-weight: 600;
@@ -185,6 +189,8 @@
         padding: 1rem 1.15rem;
         background: var(--panel);
         box-shadow: var(--shadow);
+        min-width: 0;
+        max-width: 100%;
       }
       .card h2 {
         margin: 0 0 0.75rem;
@@ -195,14 +201,27 @@
         font-family: ui-serif, Georgia, "Times New Roman", serif;
         text-align: center;
       }
+      #content {
+        min-width: 0;
+        max-width: 100%;
+      }
+      #content p {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
       .kv {
         display: grid;
         gap: 0.35rem 1rem;
-        grid-template-columns: minmax(140px, 200px) 1fr;
+        grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr);
         font-size: 0.92rem;
       }
       .kv div:nth-child(odd) {
         color: var(--muted);
+      }
+      .kv div:nth-child(even) {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       pre {
         margin: 0;
@@ -213,6 +232,13 @@
         overflow: auto;
         font-size: 0.82rem;
         max-height: 320px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
       }
       .badge {
         display: inline-block;
@@ -276,16 +302,15 @@
     </style>
   </head>
   <body>
-    <header>
-      <div class="layout">
+    <div class="page-shell">
+      <header>
         <h1>AI-assisted intake workflow</h1>
         <p>
           Classify and extract with Gemini; validate, risk, and routing are
           rule-based.
         </p>
-      </div>
-    </header>
-    <main class="layout">
+      </header>
+      <main>
       <div class="card">
         <label for="req">Business request</label>
         <textarea id="req" placeholder="Paste email or ticket text…"></textarea>
@@ -318,6 +343,7 @@
         <div id="content"></div>
       </div>
     </main>
+    </div>
     <script>
       const HISTORY_KEY = "intake_flow_history_v1";
       const HISTORY_LIMIT = 20;
