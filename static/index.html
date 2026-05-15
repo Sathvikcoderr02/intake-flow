@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Intake Workflow</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f1419;
+        --panel: #1a2332;
+        --border: #2d3a4d;
+        --text: #e8eef7;
+        --muted: #9fb0c3;
+        --accent: #5b9cff;
+        --ok: #3ecf8e;
+        --warn: #f5a524;
+        --err: #ff6b6b;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f8fb;
+          --panel: #ffffff;
+          --border: #d7dee8;
+          --text: #1b2430;
+          --muted: #5c6b7d;
+          --accent: #2563eb;
+          --ok: #0f9d58;
+          --warn: #c77700;
+          --err: #c62828;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      header h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.25rem;
+      }
+      header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 1.5rem;
+        display: grid;
+        gap: 1rem;
+      }
+      label {
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      textarea {
+        width: 100%;
+        min-height: 220px;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+        font-size: 0.95rem;
+        resize: vertical;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: var(--accent);
+        color: #fff;
+        padding: 0.55rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: transparent;
+        color: var(--text);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        background: var(--panel);
+      }
+      .card h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+      }
+      .kv {
+        display: grid;
+        gap: 0.35rem 1rem;
+        grid-template-columns: minmax(140px, 200px) 1fr;
+        font-size: 0.92rem;
+      }
+      .kv div:nth-child(odd) {
+        color: var(--muted);
+      }
+      pre {
+        margin: 0;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        overflow: auto;
+        font-size: 0.82rem;
+        max-height: 320px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .error {
+        color: var(--err);
+        white-space: pre-wrap;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>AI-assisted intake workflow</h1>
+      <p>
+        Classify and extract with Gemini; validate, risk, and routing are
+        rule-based.
+      </p>
+    </header>
+    <main>
+      <div class="card">
+        <label for="req">Business request</label>
+        <textarea id="req" placeholder="Paste email or ticket text…"></textarea>
+        <div class="row" style="margin-top: 0.65rem">
+          <button id="submit" type="button">Run workflow</button>
+          <button id="sample" class="secondary" type="button">
+            Load sample refund
+          </button>
+          <span id="status" class="muted"></span>
+        </div>
+      </div>
+
+      <div id="out" class="card" style="display: none">
+        <h2>Result</h2>
+        <div id="content"></div>
+      </div>
+    </main>
+    <script>
+      const sample = `Subject: Refund request for failed payment
+Hello Team,
+I am Priya Sharma from Acme Corp. We made a payment of INR 42,000 on 10-May2026 for invoice INV-9081, but the transaction failed and the amount was still
+deducted from our bank account.
+Please process the refund as soon as possible.
+Customer ID: CUST-7781
+Payment Reference: PAY-44291
+Contact Email: priya@acmecorp.com
+Regards,
+Priya`;
+
+      const el = (id) => document.getElementById(id);
+      const status = el("status");
+      const out = el("out");
+      const content = el("content");
+
+      el("sample").addEventListener("click", () => {
+        el("req").value = sample;
+      });
+
+      el("submit").addEventListener("click", async () => {
+        const request_text = el("req").value;
+        out.style.display = "none";
+        content.innerHTML = "";
+        status.textContent = "Running…";
+        el("submit").disabled = true;
+        try {
+          const res = await fetch("/api/process", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_text }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.detail || res.statusText || "Request failed");
+          }
+          const v = data.validation || {};
+          const rp = data.risk_priority || {};
+          const ext = data.extracted?.structured || {};
+          const extRows = Object.keys(ext).length
+            ? Object.entries(ext)
+                .map(
+                  ([k, val]) =>
+                    `<div>${escapeHtml(k)}</div><div>${escapeHtml(
+                      String(val)
+                    )}</div>`
+                )
+                .join("")
+            : `<div class="muted" style="grid-column: 1 / -1">No structured fields</div>`;
+
+          const trace = (data.trace || [])
+            .map(
+              (t) =>
+                `<div><span class="badge">${escapeHtml(
+                  t.status
+                )}</span> ${escapeHtml(t.step)}</div><div>${escapeHtml(
+                  t.detail
+                )}</div>`
+            )
+            .join("");
+
+          content.innerHTML = `
+            <div class="kv">
+              <div>Request type</div><div><strong>${escapeHtml(
+                data.request_type || ""
+              )}</strong></div>
+              <div>Confidence</div><div>${escapeHtml(
+                String(data.classification?.confidence ?? "")
+              )}</div>
+              <div>Classification summary</div><div>${escapeHtml(
+                data.classification?.summary || ""
+              )}</div>
+            </div>
+            <h2 style="margin-top:1rem">Extracted information</h2>
+            <div class="kv">${extRows}</div>
+            ${
+              data.extracted?.notes
+                ? `<p class="muted" style="margin-top:0.5rem"><strong>Notes:</strong> ${escapeHtml(
+                    data.extracted.notes
+                  )}</p>`
+                : ""
+            }
+            <h2 style="margin-top:1rem">Validation</h2>
+            <div class="kv">
+              <div>Complete</div><div><strong>${
+                v.complete ? "Yes" : "No"
+              }</strong></div>
+              <div>Missing</div><div>${escapeHtml(
+                (v.missing_fields || []).join(", ") || "—"
+              )}</div>
+              <div>Rationale</div><div>${escapeHtml(v.rationale || "")}</div>
+            </div>
+            <h2 style="margin-top:1rem">Risk / priority</h2>
+            <div class="kv">
+              <div>Risk</div><div><strong>${escapeHtml(
+                String(rp.risk_level || "")
+              )}</strong></div>
+              <div>Priority</div><div><strong>${escapeHtml(
+                String(rp.priority || "")
+              )}</strong></div>
+            </div>
+            <h2 style="margin-top:1rem">Recommended next action</h2>
+            <p style="margin:0">${escapeHtml(data.recommended_action || "")}</p>
+            <h2 style="margin-top:1rem">Workflow trace</h2>
+            <div class="kv">${trace}</div>
+            <h2 style="margin-top:1rem">Raw JSON</h2>
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+          `;
+          out.style.display = "block";
+          status.textContent = "Done.";
+        } catch (e) {
+          status.textContent = "";
+          out.style.display = "block";
+          content.innerHTML = `<p class="error">${escapeHtml(
+            e.message || String(e)
+          )}</p>`;
+        } finally {
+          el("submit").disabled = false;
+        }
+      });
+
+      function escapeHtml(s) {
+        return s
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+    </script>
+  </body>
+</html>
