@@ -211,6 +211,42 @@
         color: var(--muted);
         font-size: 0.9rem;
       }
+      .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        max-height: 280px;
+        overflow-y: auto;
+      }
+      .history-item {
+        width: 100%;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        padding: 0.65rem 0.8rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      .history-item:hover {
+        border-color: var(--accent-dim);
+        background: rgba(193, 127, 89, 0.1);
+      }
+      .history-meta {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .history-preview {
+        font-size: 0.88rem;
+        line-height: 1.35;
+        word-break: break-word;
+      }
     </style>
   </head>
   <body>
@@ -234,12 +270,30 @@
         </div>
       </div>
 
+      <div id="historyCard" class="card" style="display: none">
+        <h2>Session history</h2>
+        <p class="muted" style="margin: 0 0 0.75rem">
+          Last 20 successful runs in this tab only (
+          <code>sessionStorage</code>
+          ). Cleared when the tab closes.
+        </p>
+        <div id="historyList" class="history-list"></div>
+        <div class="row" style="margin-top: 0.65rem">
+          <button id="clearHistory" class="secondary" type="button">
+            Clear history
+          </button>
+        </div>
+      </div>
+
       <div id="out" class="card" style="display: none">
         <h2>Result</h2>
         <div id="content"></div>
       </div>
     </main>
     <script>
+      const HISTORY_KEY = "intake_flow_history_v1";
+      const HISTORY_LIMIT = 20;
+
       const sample = `Subject: Refund request for failed payment
 Hello Team,
 I am Priya Sharma from Acme Corp. We made a payment of INR 42,000 on 10-May2026 for invoice INV-9081, but the transaction failed and the amount was still
@@ -256,53 +310,122 @@ Priya`;
       const out = el("out");
       const content = el("content");
 
-      el("sample").addEventListener("click", () => {
-        el("req").value = sample;
-      });
-
-      el("submit").addEventListener("click", async () => {
-        const request_text = el("req").value;
-        out.style.display = "none";
-        content.innerHTML = "";
-        status.textContent = "Running…";
-        el("submit").disabled = true;
+      function readHistory() {
         try {
-          const res = await fetch("/api/process", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ request_text }),
+          const raw = sessionStorage.getItem(HISTORY_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function writeHistory(items) {
+        sessionStorage.setItem(
+          HISTORY_KEY,
+          JSON.stringify(items.slice(0, HISTORY_LIMIT))
+        );
+      }
+
+      function pushHistory(request_text, data) {
+        const preview = (request_text || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 140);
+        const entry = {
+          id:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : String(Date.now()) + Math.random().toString(16).slice(2),
+          savedAt: Date.now(),
+          requestPreview: preview || "(empty request)",
+          request_text,
+          result: data,
+        };
+        const next = [
+          entry,
+          ...readHistory().filter((h) => h.id !== entry.id),
+        ].slice(0, HISTORY_LIMIT);
+        writeHistory(next);
+        renderHistoryPanel();
+      }
+
+      function clearHistory() {
+        sessionStorage.removeItem(HISTORY_KEY);
+        renderHistoryPanel();
+      }
+
+      function formatHistoryTime(ts) {
+        return new Date(ts).toLocaleString(undefined, {
+          dateStyle: "short",
+          timeStyle: "short",
+        });
+      }
+
+      function renderHistoryPanel() {
+        const card = el("historyCard");
+        const listEl = el("historyList");
+        const items = readHistory();
+        if (!items.length) {
+          card.style.display = "none";
+          listEl.innerHTML = "";
+          return;
+        }
+        card.style.display = "block";
+        listEl.innerHTML = items
+          .map((h) => {
+            const idAttr = escapeHtml(h.id);
+            const t = escapeHtml(formatHistoryTime(h.savedAt));
+            const rt = escapeHtml(h.result?.request_type || "");
+            const prev = escapeHtml(h.requestPreview || "");
+            return `<button type="button" class="history-item" data-id="${idAttr}"><span class="history-meta">${t} &middot; <strong>${rt}</strong></span><span class="history-preview">${prev}</span></button>`;
+          })
+          .join("");
+        listEl.querySelectorAll(".history-item").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            const found = readHistory().find((h) => h.id === id);
+            if (!found || !found.result) return;
+            el("req").value = found.request_text || "";
+            showIntakeResult(found.result, { fromHistory: true });
+            status.textContent = "Loaded from history.";
           });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            throw new Error(data.detail || res.statusText || "Request failed");
-          }
-          const v = data.validation || {};
-          const rp = data.risk_priority || {};
-          const ext = data.extracted?.structured || {};
-          const extRows = Object.keys(ext).length
-            ? Object.entries(ext)
-                .map(
-                  ([k, val]) =>
-                    `<div>${escapeHtml(k)}</div><div>${escapeHtml(
-                      String(val)
-                    )}</div>`
-                )
-                .join("")
-            : `<div class="muted" style="grid-column: 1 / -1">No structured fields</div>`;
+        });
+      }
 
-          const trace = (data.trace || [])
-            .map(
-              (t) =>
-                `<div><span class="badge">${escapeHtml(
-                  t.status
-                )}</span> ${escapeHtml(t.step)}</div><div>${escapeHtml(
-                  t.detail
-                )}</div>`
-            )
-            .join("");
+      function buildResultMarkup(data, opts) {
+        const v = data.validation || {};
+        const rp = data.risk_priority || {};
+        const ext = data.extracted?.structured || {};
+        const extRows = Object.keys(ext).length
+          ? Object.entries(ext)
+              .map(
+                ([k, val]) =>
+                  `<div>${escapeHtml(k)}</div><div>${escapeHtml(
+                    String(val)
+                  )}</div>`
+              )
+              .join("")
+          : `<div class="muted" style="grid-column: 1 / -1">No structured fields</div>`;
 
-          window.__lastIntake = data;
-          content.innerHTML = `
+        const trace = (data.trace || [])
+          .map(
+            (t) =>
+              `<div><span class="badge">${escapeHtml(
+                t.status
+              )}</span> ${escapeHtml(t.step)}</div><div>${escapeHtml(
+                t.detail
+              )}</div>`
+          )
+          .join("");
+
+        const banner = opts.fromHistory
+          ? `<p class="muted" style="margin:0 0 0.75rem">Showing a saved run from this tab's history.</p>`
+          : "";
+
+        return `
+            ${banner}
             <div class="row" style="margin-bottom: 0.75rem">
               <button id="pdfBtn" class="secondary" type="button">
                 Download result as PDF
@@ -334,7 +457,7 @@ Priya`;
                 v.complete ? "Yes" : "No"
               }</strong></div>
               <div>Missing</div><div>${escapeHtml(
-                (v.missing_fields || []).join(", ") || "—"
+                (v.missing_fields || []).join(", ") || "\u2014"
               )}</div>
               <div>Rationale</div><div>${escapeHtml(v.rationale || "")}</div>
             </div>
@@ -354,11 +477,48 @@ Priya`;
             <h2 style="margin-top:1rem">Raw JSON</h2>
             <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
           `;
-          out.style.display = "block";
-          status.textContent = "Done.";
-          el("pdfBtn").addEventListener("click", () =>
+      }
+
+      function showIntakeResult(data, opts = {}) {
+        window.__lastIntake = data;
+        content.innerHTML = buildResultMarkup(data, opts);
+        out.style.display = "block";
+        const pdfBtn = el("pdfBtn");
+        if (pdfBtn) {
+          pdfBtn.addEventListener("click", () =>
             downloadIntakePdf(window.__lastIntake)
           );
+        }
+      }
+
+      el("sample").addEventListener("click", () => {
+        el("req").value = sample;
+      });
+
+      el("clearHistory").addEventListener("click", () => {
+        clearHistory();
+        status.textContent = "History cleared.";
+      });
+
+      el("submit").addEventListener("click", async () => {
+        const request_text = el("req").value;
+        out.style.display = "none";
+        content.innerHTML = "";
+        status.textContent = "Running…";
+        el("submit").disabled = true;
+        try {
+          const res = await fetch("/api/process", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_text }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.detail || res.statusText || "Request failed");
+          }
+          showIntakeResult(data, {});
+          pushHistory(request_text, data);
+          status.textContent = "Done.";
         } catch (e) {
           status.textContent = "";
           out.style.display = "block";
@@ -409,13 +569,15 @@ Priya`;
       }
 
       function escapeHtml(s) {
-        return s
+        return String(s)
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
           .replaceAll(">", "&gt;")
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#039;");
       }
+
+      renderHistoryPanel();
     </script>
   </body>
 </html>

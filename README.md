@@ -27,7 +27,7 @@ source .venv/bin/activate
 uvicorn main:app --reload --port 8000
 ```
 
-Open `http://127.0.0.1:8000` — paste a request, click **Run workflow**, review type, extracted fields, validation, risk/priority, recommendation, and trace. Use **Download result as PDF** to save the same result as a PDF (no extra LLM calls).
+Open `http://127.0.0.1:8000` — paste a request, click **Run workflow**, review type, extracted fields, validation, risk/priority, recommendation, and trace. Use **Download result as PDF** to save the same result as a PDF (no extra LLM calls). **Session history** (last 20 successful runs) is kept in the browser tab via `sessionStorage` so you can reopen past results until the tab closes.
 
 The app loads `.env` from the project root with **`override=True`**, so values in `.env` win over conflicting variables already set in your shell.
 
