@@ -58,7 +58,7 @@
         line-height: 1.5;
       }
       header {
-        padding: 1.25rem 1.5rem;
+        padding: 0;
         border-bottom: 1px solid var(--border);
         border-top: 3px solid var(--accent);
         background: linear-gradient(
@@ -68,29 +68,48 @@
         );
         box-shadow: var(--shadow);
       }
+      .layout {
+        width: 100%;
+        max-width: 44rem;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+        padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+        box-sizing: border-box;
+      }
+      header .layout {
+        padding-top: 1.25rem;
+        padding-bottom: 1.25rem;
+      }
       header h1 {
         margin: 0 0 0.35rem;
         font-size: 1.28rem;
         font-weight: 650;
         letter-spacing: -0.02em;
         font-family: ui-serif, Georgia, "Times New Roman", serif;
+        text-align: center;
       }
       header p {
-        margin: 0;
+        margin: 0 auto;
         color: var(--muted);
         font-size: 0.95rem;
-        max-width: 52ch;
+        max-width: 40ch;
+        text-align: center;
       }
       main {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 1.5rem;
         display: grid;
         gap: 1rem;
+        padding-top: 1.5rem;
+        padding-bottom: 2.5rem;
       }
       label {
         font-weight: 600;
         font-size: 0.9rem;
+      }
+      .card > label {
+        display: block;
+        text-align: center;
+        margin-bottom: 0.35rem;
       }
       textarea {
         width: 100%;
@@ -114,6 +133,12 @@
         flex-wrap: wrap;
         gap: 0.5rem;
         align-items: center;
+      }
+      .card > .row {
+        justify-content: center;
+      }
+      #historyCard > p.muted {
+        text-align: center;
       }
       button {
         appearance: none;
@@ -168,6 +193,7 @@
         letter-spacing: -0.01em;
         color: var(--text);
         font-family: ui-serif, Georgia, "Times New Roman", serif;
+        text-align: center;
       }
       .kv {
         display: grid;
@@ -251,13 +277,15 @@
   </head>
   <body>
     <header>
-      <h1>AI-assisted intake workflow</h1>
-      <p>
-        Classify and extract with Gemini; validate, risk, and routing are
-        rule-based.
-      </p>
+      <div class="layout">
+        <h1>AI-assisted intake workflow</h1>
+        <p>
+          Classify and extract with Gemini; validate, risk, and routing are
+          rule-based.
+        </p>
+      </div>
     </header>
-    <main>
+    <main class="layout">
       <div class="card">
         <label for="req">Business request</label>
         <textarea id="req" placeholder="Paste email or ticket text…"></textarea>
