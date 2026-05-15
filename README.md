@@ -27,9 +27,24 @@ source .venv/bin/activate
 uvicorn main:app --reload --port 8000
 ```
 
-Open `http://127.0.0.1:8000` — paste a request, click **Run workflow**, review type, extracted fields, validation, risk/priority, recommendation, and trace.
+Open `http://127.0.0.1:8000` — paste a request, click **Run workflow**, review type, extracted fields, validation, risk/priority, recommendation, and trace. Use **Download result as PDF** to save the same result as a PDF (no extra LLM calls).
 
 The app loads `.env` from the project root with **`override=True`**, so values in `.env` win over conflicting variables already set in your shell.
+
+## Docker Compose
+
+Requires [Docker](https://docs.docker.com/get-docker/) with the Compose plugin.
+
+```bash
+cd palni
+cp .env.example .env
+# Set GEMINI_API_KEY (and optional GEMINI_MODEL) in .env
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:8000`.
+
+Compose reads **`env_file: .env`** from your machine (the file is not copied into the image). Do not bake real keys into the Dockerfile.
 
 ## API
 
@@ -41,6 +56,8 @@ The app loads `.env` from the project root with **`override=True`**, so values i
 
 Returns JSON aligned with `workflow/schemas.py` (`IntakeResponse`).
 
+`POST /api/export/pdf` — request body is the same **`IntakeResponse`** JSON returned by `/api/process`. Response is a **`application/pdf`** file download.
+
 ## Project layout
 
 - `main.py` — FastAPI app and static UI
@@ -48,6 +65,7 @@ Returns JSON aligned with `workflow/schemas.py` (`IntakeResponse`).
 - `workflow/classify.py`, `workflow/extract.py` — **Gemini** (JSON mode + Pydantic validation)
 - `workflow/validate_completeness.py`, `workflow/risk_priority.py`, `workflow/recommend.py` — rules
 - `workflow/llm.py` — Gemini client configuration
+- `workflow/pdf_export.py` — PDF rendering for export
 
 ## Security
 

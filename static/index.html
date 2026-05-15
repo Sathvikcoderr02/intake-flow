@@ -236,7 +236,13 @@ Priya`;
             )
             .join("");
 
+          window.__lastIntake = data;
           content.innerHTML = `
+            <div class="row" style="margin-bottom: 0.75rem">
+              <button id="pdfBtn" class="secondary" type="button">
+                Download result as PDF
+              </button>
+            </div>
             <div class="kv">
               <div>Request type</div><div><strong>${escapeHtml(
                 data.request_type || ""
@@ -285,6 +291,9 @@ Priya`;
           `;
           out.style.display = "block";
           status.textContent = "Done.";
+          el("pdfBtn").addEventListener("click", () =>
+            downloadIntakePdf(window.__lastIntake)
+          );
         } catch (e) {
           status.textContent = "";
           out.style.display = "block";
@@ -295,6 +304,44 @@ Priya`;
           el("submit").disabled = false;
         }
       });
+
+      async function downloadIntakePdf(payload) {
+        const btn = el("pdfBtn");
+        if (!payload || !btn) return;
+        const prev = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Building PDF…";
+        try {
+          const res = await fetch("/api/export/pdf", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            let msg = res.statusText;
+            try {
+              const err = await res.json();
+              if (err.detail) msg = String(err.detail);
+            } catch (_) {}
+            throw new Error(msg);
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `intake-workflow-${Date.now()}.pdf`;
+          a.rel = "noopener";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          status.textContent = err.message || String(err);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
 
       function escapeHtml(s) {
         return s
